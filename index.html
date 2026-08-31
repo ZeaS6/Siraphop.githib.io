@@ -126,10 +126,66 @@
     const cancelAdd = q('#cancelAdd');
     const search = q('#search');
 
-    let subjects = JSON.parse(localStorage.getItem('study_subjects')||'[]');
+    let subjects = [];
     let dragSrc = null;
+    let dbReady = false;
 
-    function save(){ localStorage.setItem('study_subjects', JSON.stringify(subjects)); }
+    // IndexedDB Helper
+    const DB_NAME = 'StudyPlannerDB';
+    const STORE_NAME = 'subjects';
+
+    function initDB() {
+      return new Promise((resolve) => {
+        const req = indexedDB.open(DB_NAME, 1);
+        
+        req.onerror = () => { console.warn('IndexedDB failed'); resolve(false); };
+        req.onsuccess = () => { dbReady = true; resolve(true); };
+        
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME);
+          }
+        };
+      });
+    }
+
+    function loadSubjects() {
+      return new Promise((resolve) => {
+        if (!dbReady) {
+          console.log('DB not ready, using memory storage');
+          resolve([]);
+          return;
+        }
+
+        const req = indexedDB.open(DB_NAME);
+        req.onsuccess = () => {
+          const db = req.result;
+          const tx = db.transaction(STORE_NAME, 'readonly');
+          const store = tx.objectStore(STORE_NAME);
+          const getReq = store.get('data');
+          
+          getReq.onsuccess = () => {
+            const data = getReq.result?.value ? JSON.parse(getReq.result.value) : [];
+            resolve(data);
+          };
+          getReq.onerror = () => resolve([]);
+        };
+        req.onerror = () => resolve([]);
+      });
+    }
+
+    function save() {
+      if (!dbReady) return;
+      
+      const req = indexedDB.open(DB_NAME);
+      req.onsuccess = () => {
+        const db = req.result;
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        store.put({ value: JSON.stringify(subjects) }, 'data');
+      };
+    }
 
     function calcPercent(s){ if(!s.targetHours) return 0; return Math.min(100, Math.round((s.readMinutes/(s.targetHours*60))*1000)/10); }
 
@@ -347,11 +403,23 @@
     // search
     search.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ render(search.value); } });
 
-    // initial render
-    render();
+    // initial render & load data
+    (async () => {
+      await initDB();
+      subjects = await loadSubjects();
+      render();
 
-    // demo sample subjects if none
-    if(subjects.length===0){ subjects = [ {id:uid(),name:'Mathematics',targetHours:10,readMinutes:360}, {id:uid(),name:'Programming',targetHours:8,readMinutes:180}, {id:uid(),name:'Linear algebra',targetHours:10,readMinutes:360} ]; save(); render(); }
+      // demo sample subjects only on first visit (no saved data)
+      if(subjects.length===0){ 
+        subjects = [ 
+          {id:uid(),name:'Mathematics',targetHours:10,readMinutes:360}, 
+          {id:uid(),name:'Programming',targetHours:8,readMinutes:180}, 
+          {id:uid(),name:'Linear algebra',targetHours:10,readMinutes:360} 
+        ]; 
+        save(); 
+        render(); 
+      }
+    })();
 
     // accessibility: focus styles
     document.addEventListener('keydown', (e)=>{ if(e.key==='/' && document.activeElement.tagName!=='INPUT') { e.preventDefault(); search.focus(); } });
