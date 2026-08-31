@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>📚 Study Planner</title>
+  <style>
+    :root{
+      --bg:#f3f4f6; --card:#ffffff; --accent:#0b5ed7; --success:#2ea44f; --danger:#d9534f; --muted:#6b7280;
+    }
+    *{box-sizing:border-box}
+    body{font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial; margin:0; background:var(--bg); color:#0f172a}
+    header{padding:28px 16px 8px; text-align:center}
+    header h1{font-size:36px;margin:0 0 6px}
+    header p{margin:0;color:var(--muted);font-size:14px}
+
+    .container{max-width:1200px;margin:18px auto;padding:0 16px}
+    .topbar{display:flex;gap:12px;align-items:center;justify-content:center;margin:16px 0;flex-wrap:wrap}
+    .topbar input[type=text]{width:60%;max-width:480px;padding:12px 16px;border-radius:28px;border:1px solid #e6e6e6;background:white;box-shadow:inset 0 1px 0 rgba(0,0,0,0.02)}
+    .btn{background:linear-gradient(180deg,#1e5aa6,#073b77);color:#fff;padding:10px 16px;border-radius:10px;border:none;cursor:pointer;box-shadow:0 4px 0 rgba(0,0,0,0.12);transition:transform .08s,box-shadow .08s;font-weight:500}
+    .btn:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,0.08)}
+    .btn:hover{filter:brightness(1.06)}
+    .btn.ghost{background:transparent;color:var(--accent);box-shadow:none;border:1px solid rgba(11,94,215,0.12)}
+
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px}
+
+    .card{background:linear-gradient(180deg,#dff4ff,#dbefff);padding:0;border-radius:12px;position:relative;box-shadow:0 6px 0 rgba(0,0,0,0.06);display:flex;flex-direction:column;min-height:280px}
+    .card.dragging{opacity:0.6;transform:scale(.995);}
+
+    .cardHeader{padding:16px 16px 0;display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+    .cardHeader h3{margin:0 0 0;font-size:24px;flex:1}
+    .status{padding:6px 10px;border-radius:999px;font-weight:600;color:#fff;font-size:12px;white-space:nowrap}
+    .status.not-start{background:#94a3b8}
+    .status.reading{background:#0b84d7}
+    .status.done{background:linear-gradient(90deg,#2ea44f,#198754)}
+
+    .cardBody{padding:12px 16px;flex:1;display:flex;flex-direction:column;justify-content:space-between}
+    .meta{font-size:13px;color:#0f172a;line-height:1.5;margin-bottom:12px}
+    .meta strong{display:block;color:#0a3a66}
+
+    .progressSection{margin-bottom:12px}
+    .progressLabel{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:13px}
+    .percent{font-size:28px;font-weight:700;color:#0a6fb3}
+    .progressBar{background:#e6eef7;border-radius:999px;height:18px;overflow:hidden;box-shadow:inset 0 -2px 0 rgba(0,0,0,0.03)}
+    .bar{height:100%;background:linear-gradient(90deg,#0b84d7,#0a6fb3);width:0%;transition:width .3s}
+
+    .timeButtons{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+    .timeBtnGroup{display:flex;gap:6px;font-size:12px}
+    .timeBtn{flex:1;padding:9px 8px;border-radius:8px;background:linear-gradient(180deg,#1e5aa6,#073b77);color:#fff;border:none;cursor:pointer;font-weight:600;transition:all .08s}
+    .timeBtn:hover{filter:brightness(1.08)}
+    .timeBtn:active{transform:translateY(1px)}
+
+    .cardFooter{padding:0 16px 14px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .actionBtn{padding:9px 12px;border-radius:8px;background:linear-gradient(180deg,#1e5aa6,#073b77);color:#fff;border:none;cursor:pointer;font-weight:600;font-size:13px;transition:all .08s}
+    .actionBtn:hover{filter:brightness(1.08)}
+    .actionBtn:active{transform:translateY(1px)}
+    .actionBtn.del{background:linear-gradient(180deg,#d9534f,#c43d3d)}
+
+    /* instructions */
+    .howto{margin:18px 0;padding:14px 16px;border-radius:8px;background:#fff;box-shadow:0 4px 0 rgba(0,0,0,0.03);font-size:14px}
+    .howto strong{display:block;margin-bottom:8px}
+    .howto ul{margin:8px 0;padding-left:20px}
+    .howto li{margin:6px 0}
+
+    /* responsive tweaks */
+    @media (max-width:520px){
+      header h1{font-size:28px}
+      header p{font-size:12px}
+      .topbar{flex-direction:column}
+      .topbar input{width:100%}
+      .grid{grid-template-columns:1fr}
+      .card{min-height:auto}
+      .cardHeader h3{font-size:20px}
+      .percent{font-size:24px}
+      .timeButtons{grid-template-columns:1fr}
+      .timeBtnGroup{flex-direction:column}
+      .timeBtn{padding:8px 10px}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📚 Study Planner</h1>
+    <p>วางแผนการอ่านหนังสือ — สร้าง เป้าหมาย ติดตามเวลา และเห็นความคืบหน้า</p>
+  </header>
+
+  <main class="container">
+    <div class="topbar">
+      <input id="search" type="text" placeholder="ค้นหาวิชา (พิมพ์แล้วกด Enter)" />
+      <button id="toggleAdd" class="btn">+ เพิ่มวิชา</button>
+    </div>
+
+    <div id="addForm" style="display:none;margin-bottom:14px;background:#fff;padding:14px;border-radius:12px;box-shadow:0 4px 0 rgba(0,0,0,0.03);">
+      <div style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;">
+        <input id="subName" type="text" placeholder="ชื่อวิชา" style="padding:10px 12px;border-radius:8px;border:1px solid #e6edf5;width:220px;font-size:14px;" />
+        <input id="targetHours" type="number" min="1" placeholder="เป้าหมาย (ชั่วโมง)" style="padding:10px 12px;border-radius:8px;border:1px solid #e6edf5;width:150px;font-size:14px;" />
+        <button id="addSubjectBtn" class="btn">เพิ่ม</button>
+        <button id="cancelAdd" class="btn ghost">ยกเลิก</button>
+      </div>
+    </div>
+
+    <section class="howto">
+      <strong>📖 วิธีใช้งาน:</strong>
+      <ul>
+        <li>กด "+ เพิ่มวิชา" ใส่ชื่อและเป้าหมายเป็นชั่วโมง แล้วกด Enter หรือปุ่ม เพิ่ม</li>
+        <li>ใช้ปุ่ม <strong>-30 นาที / +30 นาที / -1 ชั่วโมง / +1 ชั่วโมง</strong> เพื่อแก้ไขเวลาที่อ่าน</li>
+        <li>Progress Bar แสดงเปอร์เซ็นต์ความคืบหน้าโดยอัตโนมัติ</li>
+        <li>กด <strong>Edit</strong> เพื่อแก้ชื่อหรือเป้าหมาย, <strong>Delete</strong> เพื่อลบการ์ด</li>
+        <li>ลากการ์ดเพื่อจัดลำดับใหม่ (Drag &amp; Drop)</li>
+        <li>ค้นหาวิชาโดยพิมพ์แล้วกด Enter</li>
+      </ul>
+    </section>
+
+    <div id="grid" class="grid" aria-live="polite"></div>
+  </main>
+
+  <script>
+    // Simple SPA Study Planner
+    const q = selector => document.querySelector(selector);
+    const grid = q('#grid');
+    const toggleAdd = q('#toggleAdd');
+    const addForm = q('#addForm');
+    const subName = q('#subName');
+    const targetHours = q('#targetHours');
+    const addSubjectBtn = q('#addSubjectBtn');
+    const cancelAdd = q('#cancelAdd');
+    const search = q('#search');
+
+    let subjects = JSON.parse(localStorage.getItem('study_subjects')||'[]');
+    let dragSrc = null;
+
+    function save(){ localStorage.setItem('study_subjects', JSON.stringify(subjects)); }
+
+    function calcPercent(s){ if(!s.targetHours) return 0; return Math.min(100, Math.round((s.readMinutes/(s.targetHours*60))*1000)/10); }
+
+    function statusFor(s){ const p = calcPercent(s); if(p>=100) return 'done'; if(s.readMinutes===0) return 'not-start'; return 'reading'; }
+
+    function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+    function render(filterText=''){
+      grid.innerHTML='';
+      const list = subjects.filter(s => s.name.toLowerCase().includes(filterText.toLowerCase()));
+      list.forEach((s, idx)=>{
+        const card = document.createElement('div');
+        card.className='card';
+        card.setAttribute('draggable','true');
+        card.dataset.id = s.id;
+
+        card.addEventListener('dragstart', (e)=>{ dragSrc = idx; card.classList.add('dragging'); e.dataTransfer.setData('text/plain', s.id); });
+        card.addEventListener('dragend', ()=>{ card.classList.remove('dragging'); dragSrc = null; });
+
+        card.addEventListener('dragover', (e)=>{ e.preventDefault(); });
+        card.addEventListener('drop', (e)=>{
+          e.preventDefault(); const srcId = e.dataTransfer.getData('text/plain'); if(!srcId) return;
+          const destId = s.id; if(srcId===destId) return;
+          const srcIndex = subjects.findIndex(x=>x.id===srcId);
+          const destIndex = subjects.findIndex(x=>x.id===destId);
+          const [m] = subjects.splice(srcIndex,1);
+          subjects.splice(destIndex,0,m);
+          save(); render(search.value);
+        });
+
+        const status = statusFor(s);
+        const statusText = status==='done' ? 'อ่านครบแล้ว' : status==='not-start' ? 'ยังไม่ได้เริ่ม' : 'กำลังอ่าน';
+        const percent = calcPercent(s);
+        const hours = Math.floor(s.readMinutes/60);
+        const mins = s.readMinutes%60;
+
+        card.innerHTML = `
+          <div class="cardHeader">
+            <h3>${escapeHtml(s.name)}</h3>
+            <div class="status ${status}">${statusText}</div>
+          </div>
+          
+          <div class="cardBody">
+            <div class="meta">
+              <strong>เป้าหมาย:</strong> ${s.targetHours} ชั่วโมง<br>
+              <strong>อ่านแล้ว:</strong> ${hours} ชม ${mins} นาที
+            </div>
+
+            <div class="progressSection">
+              <div class="progressLabel">
+                <span>ความคืบหน้า</span>
+                <span class="percent">${percent}%</span>
+              </div>
+              <div class="progressBar" aria-hidden="true"><div class="bar" style="width:${percent}%"></div></div>
+            </div>
+
+            <div class="timeButtons">
+              <div class="timeBtnGroup">
+                <button class="timeBtn sub30" title="ลด 30 นาที">-30 น</button>
+                <button class="timeBtn add30" title="เพิ่ม 30 นาที">+30 น</button>
+              </div>
+              <div class="timeBtnGroup">
+                <button class="timeBtn sub60" title="ลด 1 ชั่วโมง">-1 ชม</button>
+                <button class="timeBtn add60" title="เพิ่ม 1 ชั่วโมง">+1 ชม</button>
+              </div>
+            </div>
+
+            ${status==='done' ? '<div style="padding:8px;background:rgba(46,164,79,0.1);border-radius:6px;color:#2ea44f;font-weight:700;text-align:center;font-size:13px;">🎉 เยี่ยม! ทำเป้าหมายสำเร็จแล้ว</div>' : ''}
+          </div>
+
+          <div class="cardFooter">
+            <button class="actionBtn edit">✏️ Edit</button>
+            <button class="actionBtn del">🗑️ Delete</button>
+          </div>
+        `;
+
+        // attach handlers
+        card.querySelector('.sub30').addEventListener('click', ()=>{ s.readMinutes = Math.max(0, s.readMinutes - 30); save(); render(search.value); });
+        card.querySelector('.add30').addEventListener('click', ()=>{ s.readMinutes += 30; save(); render(search.value); });
+        card.querySelector('.sub60').addEventListener('click', ()=>{ s.readMinutes = Math.max(0, s.readMinutes - 60); save(); render(search.value); });
+        card.querySelector('.add60').addEventListener('click', ()=>{ s.readMinutes += 60; save(); render(search.value); });
+        card.querySelector('.del').addEventListener('click', ()=>{ if(confirm('ลบวิชา "' + s.name + '" จริงหรือไม่?')){ subjects = subjects.filter(x=>x.id!==s.id); save(); render(search.value); } });
+        card.querySelector('.edit').addEventListener('click', ()=>{ openInlineEdit(card, s); });
+
+        grid.appendChild(card);
+      });
+
+      if(list.length===0){ grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px 20px;color:var(--muted)"><p style="font-size:16px;">📭 ไม่มีวิชาในรายการ</p><p style="font-size:13px;">กด "+ เพิ่มวิชา" เพื่อเริ่มต้น</p></div>'; }
+    }
+
+    function openInlineEdit(card, s){
+      card.innerHTML = '';
+      const wrapper = document.createElement('div');
+      wrapper.style.padding = '16px';
+      wrapper.style.display = 'flex';
+      wrapper.style.flexDirection = 'column';
+      wrapper.style.gap = '10px';
+
+      const label1 = document.createElement('label');
+      label1.style.fontSize = '13px';
+      label1.style.fontWeight = '600';
+      label1.textContent = 'ชื่อวิชา';
+      const nameIn = document.createElement('input');
+      nameIn.value = s.name;
+      nameIn.style.padding = '10px 12px';
+      nameIn.style.fontSize = '14px';
+      nameIn.style.borderRadius = '8px';
+      nameIn.style.border = '1px solid #e6edf5';
+      nameIn.style.width = '100%';
+
+      const label2 = document.createElement('label');
+      label2.style.fontSize = '13px';
+      label2.style.fontWeight = '600';
+      label2.textContent = 'เป้าหมาย (ชั่วโมง)';
+      const targetIn = document.createElement('input');
+      targetIn.type = 'number';
+      targetIn.min = 1;
+      targetIn.value = s.targetHours;
+      targetIn.style.padding = '10px 12px';
+      targetIn.style.fontSize = '14px';
+      targetIn.style.borderRadius = '8px';
+      targetIn.style.border = '1px solid #e6edf5';
+
+      const btnGroup = document.createElement('div');
+      btnGroup.style.display = 'flex';
+      btnGroup.style.gap = '8px';
+
+      const saveBtn = document.createElement('button');
+      saveBtn.className = 'btn';
+      saveBtn.textContent = '💾 บันทึก';
+      saveBtn.style.flex = '1';
+
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'btn ghost';
+      cancelBtn.textContent = '❌ ยกเลิก';
+      cancelBtn.style.flex = '1';
+
+      wrapper.appendChild(label1);
+      wrapper.appendChild(nameIn);
+      wrapper.appendChild(label2);
+      wrapper.appendChild(targetIn);
+      wrapper.appendChild(btnGroup);
+      btnGroup.appendChild(saveBtn);
+      btnGroup.appendChild(cancelBtn);
+
+      card.appendChild(wrapper);
+
+      nameIn.focus();
+      nameIn.select();
+
+      const doSave = () => {
+        const newName = nameIn.value.trim() || s.name;
+        const newTarget = Math.max(1, Number(targetIn.value) || s.targetHours);
+        s.name = newName;
+        s.targetHours = newTarget;
+        save();
+        render(search.value);
+      };
+
+      saveBtn.addEventListener('click', doSave);
+      cancelBtn.addEventListener('click', () => { render(search.value); });
+      nameIn.addEventListener('keydown', (e) => { if(e.key==='Enter'){ doSave(); } if(e.key==='Escape'){ render(search.value); } });
+      targetIn.addEventListener('keydown', (e) => { if(e.key==='Enter'){ doSave(); } if(e.key==='Escape'){ render(search.value); } });
+    }
+
+    function escapeHtml(s){ return String(s).replace(/[&<>"']/g, function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[m];}); }
+
+    // toggles
+    toggleAdd.addEventListener('click', ()=>{ addForm.style.display = addForm.style.display==='none'?'flex':'none'; if(addForm.style.display!=='none'){ subName.focus(); } });
+    cancelAdd.addEventListener('click', ()=>{ addForm.style.display='none'; });
+
+    addSubjectBtn.addEventListener('click', addSubject);
+    function addSubject(){ const name = subName.value.trim(); const target = Math.max(1, Number(targetHours.value)||1);
+      if(!name){ alert('กรุณากรอกชื่อวิชา'); subName.focus(); return; }
+      const newSub = { id: uid(), name, targetHours: target, readMinutes:0 };
+      subjects.push(newSub); save(); subName.value=''; targetHours.value=''; addForm.style.display='none'; render(search.value);
+    }
+
+    // keyboard: Enter submits from top inputs
+    subName.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ addSubjectBtn.click(); } if(e.key==='Escape'){ cancelAdd.click(); } });
+    targetHours.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ addSubjectBtn.click(); } if(e.key==='Escape'){ cancelAdd.click(); } });
+
+    // search
+    search.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ render(search.value); } });
+
+    // initial render
+    render();
+
+    // demo sample subjects if none
+    if(subjects.length===0){ subjects = [ {id:uid(),name:'Mathematics',targetHours:10,readMinutes:360}, {id:uid(),name:'Programming',targetHours:8,readMinutes:180}, {id:uid(),name:'Linear algebra',targetHours:10,readMinutes:360} ]; save(); render(); }
+
+    // accessibility: focus styles
+    document.addEventListener('keydown', (e)=>{ if(e.key==='/' && document.activeElement.tagName!=='INPUT') { e.preventDefault(); search.focus(); } });
+  </script>
+</body>
+</html>
