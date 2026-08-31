@@ -206,13 +206,43 @@
           </div>
         `;
 
-        // attach handlers
-        card.querySelector('.sub30').addEventListener('click', ()=>{ s.readMinutes = Math.max(0, s.readMinutes - 30); save(); render(search.value); });
-        card.querySelector('.add30').addEventListener('click', ()=>{ s.readMinutes += 30; save(); render(search.value); });
-        card.querySelector('.sub60').addEventListener('click', ()=>{ s.readMinutes = Math.max(0, s.readMinutes - 60); save(); render(search.value); });
-        card.querySelector('.add60').addEventListener('click', ()=>{ s.readMinutes += 60; save(); render(search.value); });
-        card.querySelector('.del').addEventListener('click', ()=>{ if(confirm('ลบวิชา "' + s.name + '" จริงหรือไม่?')){ subjects = subjects.filter(x=>x.id!==s.id); save(); render(search.value); } });
-        card.querySelector('.edit').addEventListener('click', ()=>{ openInlineEdit(card, s); });
+        // attach handlers with cap at target
+        const btnSub30 = card.querySelector('.sub30');
+        const btnAdd30 = card.querySelector('.add30');
+        const btnSub60 = card.querySelector('.sub60');
+        const btnAdd60 = card.querySelector('.add60');
+        const btnDel = card.querySelector('.del');
+        const btnEdit = card.querySelector('.edit');
+
+        // disable add buttons when already at or above target
+        const remainingBefore = s.targetHours * 60 - s.readMinutes;
+        if (remainingBefore <= 0) {
+          btnAdd30.disabled = true; btnAdd60.disabled = true;
+          btnAdd30.style.opacity = '0.6'; btnAdd60.style.opacity = '0.6';
+          btnAdd30.title = 'เป้าหมายครบแล้ว'; btnAdd60.title = 'เป้าหมายครบแล้ว';
+        } else {
+          btnAdd30.disabled = false; btnAdd60.disabled = false;
+          btnAdd30.style.opacity = '1'; btnAdd60.style.opacity = '1';
+        }
+
+        btnSub30.addEventListener('click', ()=>{ s.readMinutes = Math.max(0, s.readMinutes - 30); save(); render(search.value); });
+        btnAdd30.addEventListener('click', ()=>{
+          const remaining = s.targetHours * 60 - s.readMinutes;
+          if (remaining <= 0) return; // already complete
+          const delta = Math.min(30, remaining);
+          s.readMinutes += delta; save(); render(search.value);
+        });
+
+        btnSub60.addEventListener('click', ()=>{ s.readMinutes = Math.max(0, s.readMinutes - 60); save(); render(search.value); });
+        btnAdd60.addEventListener('click', ()=>{
+          const remaining = s.targetHours * 60 - s.readMinutes;
+          if (remaining <= 0) return;
+          const delta = Math.min(60, remaining);
+          s.readMinutes += delta; save(); render(search.value);
+        });
+
+        btnDel.addEventListener('click', ()=>{ if(confirm('ลบวิชา "' + s.name + '" จริงหรือไม่?')){ subjects = subjects.filter(x=>x.id!==s.id); save(); render(search.value); } });
+        btnEdit.addEventListener('click', ()=>{ openInlineEdit(card, s); });
 
         grid.appendChild(card);
       });
@@ -285,6 +315,8 @@
         const newTarget = Math.max(1, Number(targetIn.value) || s.targetHours);
         s.name = newName;
         s.targetHours = newTarget;
+        // if read time exceeds new target, clamp to target
+        if (s.readMinutes > newTarget * 60) s.readMinutes = newTarget * 60;
         save();
         render(search.value);
       };
