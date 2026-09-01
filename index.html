@@ -92,11 +92,16 @@
 
     <div id="addForm" style="display:none;margin-bottom:14px;background:#fff;padding:14px;border-radius:12px;box-shadow:0 4px 0 rgba(0,0,0,0.03);">
       <div style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;">
-        <input id="subName" type="text" placeholder="ชื่อวิชา" style="padding:10px 12px;border-radius:8px;border:1px solid #e6edf5;width:220px;font-size:14px;" />
-        <input id="targetHours" type="number" min="1" placeholder="เป้าหมาย (ชั่วโมง)" style="padding:10px 12px;border-radius:8px;border:1px solid #e6edf5;width:150px;font-size:14px;" />
-        <button id="addSubjectBtn" class="btn">เพิ่ม</button>
-        <button id="cancelAdd" class="btn ghost">ยกเลิก</button>
-      </div>
+       <input id="subName" type="text" placeholder="ชื่อวิชา" style="padding:10px 12px;border-radius:8px;border:1px solid #e6edf5;width:200px;font-size:14px;" />
+       <div style="display:flex;gap:6px;align-items:center;">
+         <input id="targetHours" type="number" min="0" max="999" placeholder="ชม" style="padding:10px 12px;border-radius:8px;border:1px solid #e6edf5;width:70px;font-size:14px;text-align:center;" />
+         <span style="font-size:12px;color:#666;">ชม</span>
+         <input id="targetMins" type="number" min="0" max="59" placeholder="นน" style="padding:10px 12px;border-radius:8px;border:1px solid #e6edf5;width:70px;font-size:14px;text-align:center;" />
+         <span style="font-size:12px;color:#666;">นน</span>
+       </div>
+       <button id="addSubjectBtn" class="btn">เพิ่ม</button>
+       <button id="cancelAdd" class="btn ghost">ยกเลิก</button>
+     </div>
     </div>
 
     <section class="howto">
@@ -122,6 +127,7 @@
     const addForm = q('#addForm');
     const subName = q('#subName');
     const targetHours = q('#targetHours');
+    const targetMins = q('#targetMins');
     const addSubjectBtn = q('#addSubjectBtn');
     const cancelAdd = q('#cancelAdd');
     const search = q('#search');
@@ -187,7 +193,7 @@
       };
     }
 
-    function calcPercent(s){ if(!s.targetHours) return 0; return Math.min(100, Math.round((s.readMinutes/(s.targetHours*60))*1000)/10); }
+    function calcPercent(s){ if(!s.targetMinutes) return 0; return Math.min(100, Math.round((s.readMinutes/(s.targetMinutes))*1000)/10); }
 
     function statusFor(s){ const p = calcPercent(s); if(p>=100) return 'done'; if(s.readMinutes===0) return 'not-start'; return 'reading'; }
 
@@ -219,8 +225,10 @@
         const status = statusFor(s);
         const statusText = status==='done' ? 'อ่านครบแล้ว' : status==='not-start' ? 'ยังไม่ได้เริ่ม' : 'กำลังอ่าน';
         const percent = calcPercent(s);
-        const hours = Math.floor(s.readMinutes/60);
-        const mins = s.readMinutes%60;
+        const readHours = Math.floor(s.readMinutes/60);
+        const readMins = s.readMinutes%60;
+        const targetH = Math.floor(s.targetMinutes/60);
+        const targetM = s.targetMinutes%60;
 
         card.innerHTML = `
           <div class="cardHeader">
@@ -230,8 +238,8 @@
           
           <div class="cardBody">
             <div class="meta">
-              <strong>เป้าหมาย:</strong> ${s.targetHours} ชั่วโมง<br>
-              <strong>อ่านแล้ว:</strong> ${hours} ชม ${mins} นาที
+              <strong>เป้าหมาย:</strong> ${targetH} ชม ${targetM} นาที<br>
+              <strong>อ่านแล้ว:</strong> ${readHours} ชม ${readMins} นาที
             </div>
 
             <div class="progressSection">
@@ -271,7 +279,7 @@
         const btnEdit = card.querySelector('.edit');
 
         // disable add buttons when already at or above target
-        const remainingBefore = s.targetHours * 60 - s.readMinutes;
+        const remainingBefore = s.targetMinutes - s.readMinutes;
         if (remainingBefore <= 0) {
           btnAdd30.disabled = true; btnAdd60.disabled = true;
           btnAdd30.style.opacity = '0.6'; btnAdd60.style.opacity = '0.6';
@@ -283,15 +291,15 @@
 
         btnSub30.addEventListener('click', ()=>{ s.readMinutes = Math.max(0, s.readMinutes - 30); save(); render(search.value); });
         btnAdd30.addEventListener('click', ()=>{
-          const remaining = s.targetHours * 60 - s.readMinutes;
-          if (remaining <= 0) return; // already complete
+          const remaining = s.targetMinutes - s.readMinutes;
+          if (remaining <= 0) return;
           const delta = Math.min(30, remaining);
           s.readMinutes += delta; save(); render(search.value);
         });
 
         btnSub60.addEventListener('click', ()=>{ s.readMinutes = Math.max(0, s.readMinutes - 60); save(); render(search.value); });
         btnAdd60.addEventListener('click', ()=>{
-          const remaining = s.targetHours * 60 - s.readMinutes;
+          const remaining = s.targetMinutes - s.readMinutes;
           if (remaining <= 0) return;
           const delta = Math.min(60, remaining);
           s.readMinutes += delta; save(); render(search.value);
@@ -329,15 +337,51 @@
       const label2 = document.createElement('label');
       label2.style.fontSize = '13px';
       label2.style.fontWeight = '600';
-      label2.textContent = 'เป้าหมาย (ชั่วโมง)';
-      const targetIn = document.createElement('input');
-      targetIn.type = 'number';
-      targetIn.min = 1;
-      targetIn.value = s.targetHours;
-      targetIn.style.padding = '10px 12px';
-      targetIn.style.fontSize = '14px';
-      targetIn.style.borderRadius = '8px';
-      targetIn.style.border = '1px solid #e6edf5';
+      label2.textContent = 'เป้าหมาย';
+
+      const targetHrsIn = document.createElement('input');
+      targetHrsIn.type = 'number';
+      targetHrsIn.min = 0;
+      targetHrsIn.max = 999;
+      targetHrsIn.value = Math.floor(s.targetMinutes / 60);
+      targetHrsIn.style.padding = '10px 12px';
+      targetHrsIn.style.fontSize = '14px';
+      targetHrsIn.style.borderRadius = '8px';
+      targetHrsIn.style.border = '1px solid #e6edf5';
+      targetHrsIn.style.width = '70px';
+      targetHrsIn.style.textAlign = 'center';
+
+      const label2a = document.createElement('span');
+      label2a.textContent = 'ชม';
+      label2a.style.fontSize = '12px';
+      label2a.style.color = '#666';
+
+      const targetMinsIn = document.createElement('input');
+      targetMinsIn.type = 'number';
+      targetMinsIn.min = 0;
+      targetMinsIn.max = 59;
+      targetMinsIn.value = s.targetMinutes % 60;
+      targetMinsIn.style.padding = '10px 12px';
+      targetMinsIn.style.fontSize = '14px';
+      targetMinsIn.style.borderRadius = '8px';
+      targetMinsIn.style.border = '1px solid #e6edf5';
+      targetMinsIn.style.width = '70px';
+      targetMinsIn.style.textAlign = 'center';
+
+      const label2b = document.createElement('span');
+      label2b.textContent = 'นาที';
+      label2b.style.fontSize = '12px';
+      label2b.style.color = '#666';
+
+      const timeGroup = document.createElement('div');
+      timeGroup.style.display = 'flex';
+      timeGroup.style.gap = '6px';
+      timeGroup.style.alignItems = 'center';
+      timeGroup.style.justifyContent = 'center';
+      timeGroup.appendChild(targetHrsIn);
+      timeGroup.appendChild(label2a);
+      timeGroup.appendChild(targetMinsIn);
+      timeGroup.appendChild(label2b);
 
       const btnGroup = document.createElement('div');
       btnGroup.style.display = 'flex';
@@ -356,7 +400,7 @@
       wrapper.appendChild(label1);
       wrapper.appendChild(nameIn);
       wrapper.appendChild(label2);
-      wrapper.appendChild(targetIn);
+      wrapper.appendChild(timeGroup);
       wrapper.appendChild(btnGroup);
       btnGroup.appendChild(saveBtn);
       btnGroup.appendChild(cancelBtn);
@@ -368,11 +412,19 @@
 
       const doSave = () => {
         const newName = nameIn.value.trim() || s.name;
-        const newTarget = Math.max(1, Number(targetIn.value) || s.targetHours);
+        const h = Math.max(0, Number(targetHrsIn.value) || 0);
+        const m = Math.max(0, Math.min(59, Number(targetMinsIn.value) || 0));
+        const newTargetMinutes = h * 60 + m;
+        
+        if (newTargetMinutes < 1) {
+          alert('กรุณากำหนดเป้าหมายอย่างน้อย 1 นาที');
+          return;
+        }
+        
         s.name = newName;
-        s.targetHours = newTarget;
+        s.targetMinutes = newTargetMinutes;
         // if read time exceeds new target, clamp to target
-        if (s.readMinutes > newTarget * 60) s.readMinutes = newTarget * 60;
+        if (s.readMinutes > s.targetMinutes) s.readMinutes = s.targetMinutes;
         save();
         render(search.value);
       };
@@ -380,7 +432,8 @@
       saveBtn.addEventListener('click', doSave);
       cancelBtn.addEventListener('click', () => { render(search.value); });
       nameIn.addEventListener('keydown', (e) => { if(e.key==='Enter'){ doSave(); } if(e.key==='Escape'){ render(search.value); } });
-      targetIn.addEventListener('keydown', (e) => { if(e.key==='Enter'){ doSave(); } if(e.key==='Escape'){ render(search.value); } });
+      targetHrsIn.addEventListener('keydown', (e) => { if(e.key==='Enter'){ doSave(); } if(e.key==='Escape'){ render(search.value); } });
+      targetMinsIn.addEventListener('keydown', (e) => { if(e.key==='Enter'){ doSave(); } if(e.key==='Escape'){ render(search.value); } });
     }
 
     function escapeHtml(s){ return String(s).replace(/[&<>"']/g, function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[m];}); }
@@ -390,15 +443,21 @@
     cancelAdd.addEventListener('click', ()=>{ addForm.style.display='none'; });
 
     addSubjectBtn.addEventListener('click', addSubject);
-    function addSubject(){ const name = subName.value.trim(); const target = Math.max(1, Number(targetHours.value)||1);
+    function addSubject(){ 
+      const name = subName.value.trim(); 
+      const h = Math.max(0, Number(targetHours.value)||0);
+      const m = Math.max(0, Math.min(59, Number(targetMins.value)||0));
+      const targetMinutes = h * 60 + m;
       if(!name){ alert('กรุณากรอกชื่อวิชา'); subName.focus(); return; }
-      const newSub = { id: uid(), name, targetHours: target, readMinutes:0 };
-      subjects.push(newSub); save(); subName.value=''; targetHours.value=''; addForm.style.display='none'; render(search.value);
+      if(targetMinutes < 1){ alert('กรุณากำหนดเป้าหมายอย่างน้อย 1 นาที'); return; }
+      const newSub = { id: uid(), name, targetMinutes, readMinutes:0 };
+      subjects.push(newSub); save(); subName.value=''; targetHours.value=''; targetMins.value=''; addForm.style.display='none'; render(search.value);
     }
 
     // keyboard: Enter submits from top inputs
     subName.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ addSubjectBtn.click(); } if(e.key==='Escape'){ cancelAdd.click(); } });
     targetHours.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ addSubjectBtn.click(); } if(e.key==='Escape'){ cancelAdd.click(); } });
+    targetMins.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ addSubjectBtn.click(); } if(e.key==='Escape'){ cancelAdd.click(); } });
 
     // search
     search.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ render(search.value); } });
