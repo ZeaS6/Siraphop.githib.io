@@ -94,9 +94,9 @@
       <div style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;">
        <input id="subName" type="text" placeholder="ชื่อวิชา" style="padding:10px 12px;border-radius:8px;border:1px solid #e6edf5;width:200px;font-size:14px;" />
        <div style="display:flex;gap:6px;align-items:center;">
-         <input id="targetHours" type="number" min="0" max="999" placeholder="ชม" style="padding:10px 12px;border-radius:8px;border:1px solid #e6edf5;width:70px;font-size:14px;text-align:center;" />
+         <input id="targetHours" type="number" min="0" max="999" value="6" placeholder="ชม" style="padding:10px 12px;border-radius:8px;border:1px solid #e6edf5;width:70px;font-size:14px;text-align:center;" />
          <span style="font-size:12px;color:#666;">ชม</span>
-         <input id="targetMins" type="number" min="0" max="59" placeholder="นน" style="padding:10px 12px;border-radius:8px;border:1px solid #e6edf5;width:70px;font-size:14px;text-align:center;" />
+         <input id="targetMins" type="number" min="0" max="59" value="0" placeholder="นน" style="padding:10px 12px;border-radius:8px;border:1px solid #e6edf5;width:70px;font-size:14px;text-align:center;" />
          <span style="font-size:12px;color:#666;">นน</span>
        </div>
        <button id="addSubjectBtn" class="btn">เพิ่ม</button>
@@ -343,7 +343,9 @@
       targetHrsIn.type = 'number';
       targetHrsIn.min = 0;
       targetHrsIn.max = 999;
-      targetHrsIn.value = Math.floor(s.targetMinutes / 60);
+      const targetHrs = Math.floor((s.targetMinutes || 360) / 60);
+      targetHrsIn.value = targetHrs;
+      targetHrsIn.placeholder = '0';
       targetHrsIn.style.padding = '10px 12px';
       targetHrsIn.style.fontSize = '14px';
       targetHrsIn.style.borderRadius = '8px';
@@ -360,7 +362,9 @@
       targetMinsIn.type = 'number';
       targetMinsIn.min = 0;
       targetMinsIn.max = 59;
-      targetMinsIn.value = s.targetMinutes % 60;
+      const targetM = (s.targetMinutes || 360) % 60;
+      targetMinsIn.value = targetM;
+      targetMinsIn.placeholder = '0';
       targetMinsIn.style.padding = '10px 12px';
       targetMinsIn.style.fontSize = '14px';
       targetMinsIn.style.borderRadius = '8px';
@@ -445,13 +449,21 @@
     addSubjectBtn.addEventListener('click', addSubject);
     function addSubject(){ 
       const name = subName.value.trim(); 
-      const h = Math.max(0, Number(targetHours.value)||0);
-      const m = Math.max(0, Math.min(59, Number(targetMins.value)||0));
+      const h = Math.max(0, Number(targetHours.value) || 6);
+      const m = Math.max(0, Math.min(59, Number(targetMins.value) || 0));
       const targetMinutes = h * 60 + m;
+      
       if(!name){ alert('กรุณากรอกชื่อวิชา'); subName.focus(); return; }
       if(targetMinutes < 1){ alert('กรุณากำหนดเป้าหมายอย่างน้อย 1 นาที'); return; }
-      const newSub = { id: uid(), name, targetMinutes, readMinutes:0 };
-      subjects.push(newSub); save(); subName.value=''; targetHours.value=''; targetMins.value=''; addForm.style.display='none'; render(search.value);
+      
+      const newSub = { id: uid(), name, targetMinutes, readMinutes: 0 };
+      subjects.push(newSub); 
+      save(); 
+      subName.value=''; 
+      targetHours.value=''; 
+      targetMins.value=''; 
+      addForm.style.display='none'; 
+      render(search.value);
     }
 
     // keyboard: Enter submits from top inputs
@@ -471,9 +483,9 @@
       // demo sample subjects only on first visit (no saved data)
       if(subjects.length===0){ 
         subjects = [ 
-          {id:uid(),name:'Mathematics',targetHours:10,readMinutes:360}, 
-          {id:uid(),name:'Programming',targetHours:8,readMinutes:180}, 
-          {id:uid(),name:'Linear algebra',targetHours:10,readMinutes:360} 
+          {id:uid(),name:'Mathematics',targetMinutes:600,readMinutes:360}, 
+          {id:uid(),name:'Programming',targetMinutes:480,readMinutes:180}, 
+          {id:uid(),name:'Linear algebra',targetMinutes:600,readMinutes:360} 
         ]; 
         save(); 
         render(); 
